@@ -3,74 +3,114 @@ const { supabase } = require('../config/supabase');
 
 class RecipeController {
   // Get all recipes with filtering
+  // async getAllRecipes(req, res) {
+  //   try {
+  //     const userId = req.user.id;
+  //     const { 
+  //       cuisine_type, 
+  //       meal_type, 
+  //       difficulty, 
+  //       tags,
+  //       search 
+  //     } = req.query;
+
+  //     // Build the query
+  //     let query = supabase
+  //       .from('recipes')
+  //       .select(`
+  //         *,
+  //         recipe_images!inner (
+  //           image_url,
+  //           is_primary
+  //         ),
+  //         recipe_tags (
+  //           tag:tags (
+  //             id,
+  //             name
+  //           )
+  //         )
+  //       `)
+  //       .eq('user_id', userId);
+
+  //     // Apply filters
+  //     if (cuisine_type) {
+  //       query = query.eq('cuisine_type', cuisine_type);
+  //     }
+  //     if (meal_type) {
+  //       query = query.eq('meal_type', meal_type);
+  //     }
+  //     if (difficulty) {
+  //       query = query.eq('difficulty', difficulty);
+  //     }
+  //     if (search) {
+  //       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+  //     }
+
+  //     // Filter by tags if provided
+  //     if (tags) {
+  //       const tagArray = Array.isArray(tags) ? tags : [tags];
+  //       const recipeIds = await this.getRecipeIdsByTagsEfficient(tagArray, userId);
+  //       if (recipeIds.length > 0) {
+  //         query = query.in('id', recipeIds);
+  //       } else {
+  //         // No recipes match the tags
+  //         return res.json([]);
+  //       }
+  //     }
+
+  //     const { data: recipes, error } = await query
+  //       .order('created_at', { ascending: false });
+
+  //     if (error) throw error;
+
+  //     // Transform tags for easier use
+  //     const recipesWithTags = recipes.map(recipe => ({
+  //       ...recipe,
+  //       tags: recipe.recipe_tags ? recipe.recipe_tags.map(rt => rt.tag.name) : []
+  //     }));
+
+  //     res.json(recipesWithTags);
+  //   } catch (error) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // }
   async getAllRecipes(req, res) {
     try {
       const userId = req.user.id;
-      const { 
-        cuisine_type, 
-        meal_type, 
-        difficulty, 
-        tags,
-        search 
-      } = req.query;
+      console.log('Getting recipes for user:', userId);
 
-      // Build the query
-      let query = supabase
+      // First, test without any joins
+      const { data: testRecipes, error: testError } = await supabase
         .from('recipes')
-        .select(`
-          *,
-          recipe_images!inner (
-            image_url,
-            is_primary
-          ),
-          recipe_tags (
-            tag:tags (
-              id,
-              name
-            )
-          )
-        `)
+        .select('id, title, user_id')
         .eq('user_id', userId);
 
-      // Apply filters
-      if (cuisine_type) {
-        query = query.eq('cuisine_type', cuisine_type);
-      }
-      if (meal_type) {
-        query = query.eq('meal_type', meal_type);
-      }
-      if (difficulty) {
-        query = query.eq('difficulty', difficulty);
-      }
-      if (search) {
-        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
-      }
+      console.log('Test query result:', { 
+        count: testRecipes?.length, 
+        error: testError,
+        userId 
+      });
 
-      // Filter by tags if provided
-      if (tags) {
-        const tagArray = Array.isArray(tags) ? tags : [tags];
-        const recipeIds = await this.getRecipeIdsByTagsEfficient(tagArray, userId);
-        if (recipeIds.length > 0) {
-          query = query.in('id', recipeIds);
-        } else {
-          // No recipes match the tags
-          return res.json([]);
-        }
-      }
+      // Your original query...
+      let query = supabase
+        .from('recipes')
+        .select('*')
+        .eq('user_id', userId);
 
       const { data: recipes, error } = await query
         .order('created_at', { ascending: false });
 
+      console.log('Final query result:', { 
+        count: recipes?.length, 
+        error,
+        firstRecipe: recipes?.[0]
+      });
+
       if (error) throw error;
 
-      // Transform tags for easier use
-      const recipesWithTags = recipes.map(recipe => ({
-        ...recipe,
-        tags: recipe.recipe_tags ? recipe.recipe_tags.map(rt => rt.tag.name) : []
-      }));
-
-      res.json(recipesWithTags);
+      res.json(recipes || []);
     } catch (error) {
+      console.error('Error in getAllRecipes:', error);
       res.status(500).json({ error: error.message });
     }
   }
