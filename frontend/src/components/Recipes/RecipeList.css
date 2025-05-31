@@ -1,0 +1,33 @@
+.recipe-list-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.recipe-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.recipe-list-header h1 {
+  margin: 0;
+}
+
+.recipe-list-header p {
+  color: #666;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.no-recipes {
+  text-align: center;
+  padding: 3rem;
+  background: white;
+  border-radius: 8px;
+  color: #666;
+}
