@@ -115,179 +115,307 @@ class RecipeController {
     }
   }
 
-  // Get single recipe with all details
+  // // Get single recipe with all details
+  // async getRecipe(req, res) {
+  //   try {
+  //     const { id } = req.params;
+  //     const userId = req.user.id;
+
+  //     const { data: recipe, error } = await supabase
+  //       .from('recipes')
+  //       .select(`
+  //         *,
+  //         ingredients (
+  //           id,
+  //           text,
+  //           amount,
+  //           unit,
+  //           item,
+  //           order_index
+  //         ),
+  //         instructions (
+  //           id,
+  //           step_number,
+  //           text,
+  //           instruction_notes (
+  //             id,
+  //             note,
+  //             created_at,
+  //             user:auth.users (
+  //               id,
+  //               email
+  //             )
+  //           )
+  //         ),
+  //         recipe_images (
+  //           id,
+  //           image_url,
+  //           caption,
+  //           is_primary
+  //         ),
+  //         recipe_makes (
+  //           id,
+  //           made_at,
+  //           rating,
+  //           notes
+  //         ),
+  //         recipe_comments (
+  //           id,
+  //           comment,
+  //           created_at,
+  //           user:auth.users (
+  //             id,
+  //             email
+  //           )
+  //         ),
+  //         recipe_tags (
+  //           tag:tags (
+  //             id,
+  //             name
+  //           )
+  //         )
+  //       `)
+  //       .eq('id', id)
+  //       .eq('user_id', userId)
+  //       .single();
+
+  //     if (error) throw error;
+
+  //     if (!recipe) {
+  //       return res.status(404).json({ error: 'Recipe not found' });
+  //     }
+
+  //     // Sort ingredients and instructions
+  //     recipe.ingredients.sort((a, b) => a.order_index - b.order_index);
+  //     recipe.instructions.sort((a, b) => a.step_number - b.step_number);
+      
+  //     // Flatten tags
+  //     recipe.tags = recipe.recipe_tags ? recipe.recipe_tags.map(rt => rt.tag.name) : [];
+
+  //     res.json(recipe);
+  //   } catch (error) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // }
+
+  // Get single recipe with essential details only
   async getRecipe(req, res) {
     try {
       const { id } = req.params;
       const userId = req.user.id;
-
+      
+      // Get recipe basic info
       const { data: recipe, error } = await supabase
         .from('recipes')
         .select(`
           *,
-          ingredients (
-            id,
-            text,
-            amount,
-            unit,
-            item,
-            order_index
-          ),
-          instructions (
-            id,
-            step_number,
-            text,
-            instruction_notes (
-              id,
-              note,
-              created_at,
-              user:auth.users (
-                id,
-                email
-              )
-            )
-          ),
-          recipe_images (
-            id,
-            image_url,
-            caption,
-            is_primary
-          ),
-          recipe_makes (
-            id,
-            made_at,
-            rating,
-            notes
-          ),
-          recipe_comments (
-            id,
-            comment,
-            created_at,
-            user:auth.users (
-              id,
-              email
-            )
-          ),
+          ingredients (*),
+          instructions (*),
           recipe_tags (
-            tag:tags (
-              id,
-              name
-            )
+            tag:tags (name)
           )
         `)
         .eq('id', id)
         .eq('user_id', userId)
         .single();
-
-      if (error) throw error;
-
+      
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+      
       if (!recipe) {
         return res.status(404).json({ error: 'Recipe not found' });
       }
-
-      // Sort ingredients and instructions
-      recipe.ingredients.sort((a, b) => a.order_index - b.order_index);
-      recipe.instructions.sort((a, b) => a.step_number - b.step_number);
+      
+      // Sort and format
+      if (recipe.ingredients) {
+        recipe.ingredients.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      }
+      
+      if (recipe.instructions) {
+        recipe.instructions.sort((a, b) => (a.step_number || 0) - (b.step_number || 0));
+      }
       
       // Flatten tags
       recipe.tags = recipe.recipe_tags ? recipe.recipe_tags.map(rt => rt.tag.name) : [];
-
+      delete recipe.recipe_tags;
+      
       res.json(recipe);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error('Error fetching recipe:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch recipe',
+        details: error.message 
+      });
     }
   }
 
   // Create new recipe
   async createRecipe(req, res) {
-    try {
-      const userId = req.user.id;
-      const { 
-        title, 
-        description, 
-        prep_time, 
-        cook_time, 
-        servings,
-        source_url,
-        ingredients,
-        instructions,
-        header_image_url,
-        cuisine_type,
-        meal_type,
-        difficulty,
-        tags
-      } = req.body;
-
-      // Create the recipe
-      const { data: recipe, error: recipeError } = await supabase
-        .from('recipes')
-        .insert({
-          user_id: userId,
-          title,
-          description,
-          prep_time,
-          cook_time,
-          servings,
-          source_url,
-          header_image_url,
-          cuisine_type: cuisine_type || 'other',
-          meal_type: meal_type || 'other',
-          difficulty: difficulty || 'medium'
-        })
-        .select()
-        .single();
-
-      if (recipeError) throw recipeError;
-
-      // Insert ingredients
-      if (ingredients && ingredients.length > 0) {
-        const ingredientsData = ingredients.map((ing, index) => ({
+  try {
+    const userId = req.user.id;
+    const {
+      title,
+      description,
+      prep_time,
+      cook_time,
+      servings,
+      source_url,
+      ingredients,
+      instructions,
+      header_image_url,
+      cuisine_type,
+      meal_type,
+      difficulty,
+      tags
+    } = req.body;
+    
+    // Validate required fields
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Recipe title is required' });
+    }
+    
+    // Create the recipe
+    const { data: recipe, error: recipeError } = await supabase
+      .from('recipes')
+      .insert({
+        user_id: userId,
+        title: title.trim(),
+        description: description ? description.trim() : null,
+        prep_time: prep_time || null,
+        cook_time: cook_time || null,
+        servings: servings || null,
+        source_url: source_url || null,
+        header_image_url: header_image_url || null,
+        cuisine_type: cuisine_type || 'other',
+        meal_type: meal_type || 'other',
+        difficulty: difficulty || 'medium'
+      })
+      .select()
+      .single();
+    
+    if (recipeError) {
+      console.error('Recipe creation error:', recipeError);
+      throw recipeError;
+    }
+    
+    // Insert ingredients - filter out empty ones
+    if (ingredients && ingredients.length > 0) {
+      const validIngredients = ingredients
+        .filter(ing => ing.text && ing.text.trim()) // Only include ingredients with text
+        .map((ing, index) => ({
           recipe_id: recipe.id,
-          text: ing.text,
-          amount: ing.amount,
-          unit: ing.unit,
-          item: ing.item,
-          order_index: ing.order_index || index
+          text: ing.text.trim(),
+          amount: ing.amount ? ing.amount.trim() : null,
+          unit: ing.unit ? ing.unit.trim() : null,
+          item: ing.item ? ing.item.trim() : null,
+          order_index: ing.order_index !== undefined ? ing.order_index : index
         }));
-
+      
+      if (validIngredients.length > 0) {
         const { error: ingError } = await supabase
           .from('ingredients')
-          .insert(ingredientsData);
-
-        if (ingError) throw ingError;
+          .insert(validIngredients);
+        
+        if (ingError) {
+          console.error('Ingredients insertion error:', ingError);
+          // If ingredients fail, we should delete the recipe to maintain consistency
+          await supabase.from('recipes').delete().eq('id', recipe.id);
+          throw ingError;
+        }
       }
-
-      // Insert instructions
-      if (instructions && instructions.length > 0) {
-        const instructionsData = instructions.map((inst, index) => ({
+    }
+    
+    // Insert instructions - filter out empty ones
+    if (instructions && instructions.length > 0) {
+      const validInstructions = instructions
+        .filter(inst => inst.text && inst.text.trim()) // Only include instructions with text
+        .map((inst, index) => ({
           recipe_id: recipe.id,
           step_number: inst.step_number || index + 1,
-          text: inst.text
+          text: inst.text.trim()
         }));
-
+      
+      if (validInstructions.length > 0) {
         const { error: instError } = await supabase
           .from('instructions')
-          .insert(instructionsData);
-
-        if (instError) throw instError;
+          .insert(validInstructions);
+        
+        if (instError) {
+          console.error('Instructions insertion error:', instError);
+          // If instructions fail, we should delete the recipe and ingredients
+          await supabase.from('ingredients').delete().eq('recipe_id', recipe.id);
+          await supabase.from('recipes').delete().eq('id', recipe.id);
+          throw instError;
+        }
       }
-
-      // Handle tags
-      if (tags && tags.length > 0) {
-        await this.addTagsToRecipe(recipe.id, tags);
-      }
-
-      // Log creation in edit history
-      await this.logEdit(recipe.id, userId, 'created', null, 'Recipe created');
-
-      res.status(201).json({ 
-        message: 'Recipe created successfully', 
-        recipe 
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
     }
+    
+    // Handle tags
+    if (tags && tags.length > 0) {
+      try {
+        await this.addTagsToRecipe(recipe.id, tags);
+      } catch (tagError) {
+        console.error('Tag insertion error:', tagError);
+        // Non-critical error - don't fail the whole recipe creation
+      }
+    }
+    
+    // Log creation in edit history
+    try {
+      await this.logEdit(recipe.id, userId, 'created', null, 'Recipe created');
+    } catch (logError) {
+      console.error('Edit history logging error:', logError);
+      // Non-critical error - don't fail the whole recipe creation
+    }
+    
+    // Fetch the complete recipe with all related data
+    const { data: completeRecipe, error: fetchError } = await supabase
+      .from('recipes')
+      .select(`
+        *,
+        ingredients (*),
+        instructions (*),
+        recipe_tags (
+          tag:tags (name)
+        )
+      `)
+      .eq('id', recipe.id)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching complete recipe:', fetchError);
+      // Return basic recipe if fetch fails
+      return res.status(201).json({
+        message: 'Recipe created successfully',
+        recipe
+      });
+    }
+    
+    // Format the response
+    if (completeRecipe.ingredients) {
+      completeRecipe.ingredients.sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+    }
+    if (completeRecipe.instructions) {
+      completeRecipe.instructions.sort((a, b) => (a.step_number || 0) - (b.step_number || 0));
+    }
+    completeRecipe.tags = completeRecipe.recipe_tags ? completeRecipe.recipe_tags.map(rt => rt.tag.name) : [];
+    delete completeRecipe.recipe_tags;
+    
+    res.status(201).json({
+      message: 'Recipe created successfully',
+      recipe: completeRecipe
+    });
+    
+  } catch (error) {
+    console.error('Error creating recipe:', error);
+    res.status(500).json({ 
+      error: 'Failed to create recipe',
+      details: error.message 
+    });
   }
+}
 
   // Update recipe
   async updateRecipe(req, res) {

@@ -1,42 +1,40 @@
-// src/components/Recipes/RecipeForm.tsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Plus, Minus, Save } from 'lucide-react';
 import { CreateRecipeData, CuisineType, MealType, DifficultyLevel } from '../../types/recipe.types';
-import recipeService from '../../services/recipeService';
 import { ErrorMessage } from '../Common/ErrorMessage';
 import './RecipeForm.css';
 
-export const RecipeForm: React.FC = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  
+interface RecipeFormProps {
+  initialData?: Partial<CreateRecipeData>;
+  onSubmit: (data: CreateRecipeData) => Promise<any>;
+  isSubmitting: boolean;
+  error: string | null;
+}
+
+export const RecipeForm: React.FC<RecipeFormProps> = ({ 
+  initialData, 
+  onSubmit,
+  isSubmitting, 
+  error 
+}) => {
   const [formData, setFormData] = useState<CreateRecipeData>({
-    title: '',
-    description: '',
-    prep_time: undefined,
-    cook_time: undefined,
-    servings: undefined,
-    cuisine_type: 'other',
-    meal_type: 'other',
-    difficulty: 'medium',
-    ingredients: [{ text: '', amount: '', unit: '', item: '', order_index: 0 }],
-    instructions: [{ step_number: 1, text: '' }],
-    tags: [],
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    prep_time: initialData?.prep_time || undefined,
+    cook_time: initialData?.cook_time || undefined,
+    servings: initialData?.servings || undefined,
+    cuisine_type: initialData?.cuisine_type || 'other',
+    meal_type: initialData?.meal_type || 'other',
+    difficulty: initialData?.difficulty || 'medium',
+    ingredients: initialData?.ingredients || [{ text: '', amount: '', unit: '', item: '', order_index: 0 }],
+    instructions: initialData?.instructions || [{ step_number: 1, text: '' }],
+    tags: initialData?.tags || [],
   });
 
   const [tagInput, setTagInput] = useState('');
 
   const handleBasicInfoChange = (field: keyof CreateRecipeData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const addIngredient = () => {
-    setFormData(prev => ({
-      ...prev,
-      ingredients: [...prev.ingredients, { text: '', amount: '', unit: '', item: '', order_index: prev.ingredients.length }]
-    }));
   };
 
   const removeIngredient = (index: number) => {
@@ -52,13 +50,6 @@ export const RecipeForm: React.FC = () => {
       ingredients: prev.ingredients.map((ing, i) => 
         i === index ? { ...ing, [field]: value } : ing
       )
-    }));
-  };
-
-  const addInstruction = () => {
-    setFormData(prev => ({
-      ...prev,
-      instructions: [...prev.instructions, { step_number: prev.instructions.length + 1, text: '' }]
     }));
   };
 
@@ -95,24 +86,71 @@ export const RecipeForm: React.FC = () => {
     }));
   };
 
+  // Replace the existing handleSubmit function in your RecipeForm component with this:
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    
+    // Validate required fields
+    if (!formData.title.trim()) {
+      alert('Recipe title is required');
+      return;
+    }
+    
+    // Filter out empty ingredients and instructions
+    const cleanedData: CreateRecipeData = {
+      ...formData,
+      title: formData.title.trim(),
+      description: (formData.description ?? '').trim(),
+      // Filter out empty ingredients
+      ingredients: formData.ingredients.filter(ing => ing.text.trim()),
+      // Filter out empty instructions
+      instructions: formData.instructions.filter(inst => inst.text.trim())
+        .map((inst, index) => ({ ...inst, step_number: index + 1 })), // Renumber steps
+      // Filter out empty tags
+      tags: formData.tags?.filter(tag => tag.trim()) || []
+    };
+    
+    // Check if we have at least one ingredient and instruction
+    if (cleanedData.ingredients.length === 0) {
+      alert('Please add at least one ingredient');
+      return;
+    }
+    
+    if (cleanedData.instructions.length === 0) {
+      alert('Please add at least one instruction');
+      return;
+    }
+    
+    await onSubmit(cleanedData);
+  };
 
-    try {
-      const recipe = await recipeService.createRecipe(formData);
-      navigate(`/recipes/${recipe.id}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create recipe');
-      setLoading(false);
+  // Also update these functions to prevent adding empty items:
+
+  const addIngredient = () => {
+    // Only add if the last ingredient isn't empty
+    const lastIngredient = formData.ingredients[formData.ingredients.length - 1];
+    if (!lastIngredient || lastIngredient.text.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        ingredients: [...prev.ingredients, { text: '', amount: '', unit: '', item: '', order_index: prev.ingredients.length }]
+      }));
+    }
+  };
+
+  const addInstruction = () => {
+    // Only add if the last instruction isn't empty
+    const lastInstruction = formData.instructions[formData.instructions.length - 1];
+    if (!lastInstruction || lastInstruction.text.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        instructions: [...prev.instructions, { step_number: prev.instructions.length + 1, text: '' }]
+      }));
     }
   };
 
   return (
     <div className="recipe-form-container">
-      <h1>Create New Recipe</h1>
-      
       {error && <ErrorMessage message={error} />}
       
       <form onSubmit={handleSubmit} className="recipe-form">
@@ -147,6 +185,7 @@ export const RecipeForm: React.FC = () => {
             <div className="form-group">
               <label htmlFor="cuisine">Cuisine Type</label>
               <select
+                title='Cuisine Type'
                 id="cuisine"
                 value={formData.cuisine_type}
                 onChange={(e) => handleBasicInfoChange('cuisine_type', e.target.value as CuisineType)}
@@ -167,6 +206,7 @@ export const RecipeForm: React.FC = () => {
             <div className="form-group">
               <label htmlFor="meal">Meal Type</label>
               <select
+                title='Meal Type'
                 id="meal"
                 value={formData.meal_type}
                 onChange={(e) => handleBasicInfoChange('meal_type', e.target.value as MealType)}
@@ -184,6 +224,7 @@ export const RecipeForm: React.FC = () => {
             <div className="form-group">
               <label htmlFor="difficulty">Difficulty</label>
               <select
+                title='Difficulty Level'
                 id="difficulty"
                 value={formData.difficulty}
                 onChange={(e) => handleBasicInfoChange('difficulty', e.target.value as DifficultyLevel)}
@@ -245,6 +286,7 @@ export const RecipeForm: React.FC = () => {
               />
               {formData.ingredients.length > 1 && (
                 <button
+                  title='Remove Ingredient'
                   type="button"
                   onClick={() => removeIngredient(index)}
                   className="btn-icon"
@@ -254,7 +296,7 @@ export const RecipeForm: React.FC = () => {
               )}
             </div>
           ))}
-          <button type="button" onClick={addIngredient} className="btn btn-secondary">
+          <button title='Add Ingredient' type="button" onClick={addIngredient} className="btn btn-secondary">
             <Plus size={20} /> Add Ingredient
           </button>
         </section>
@@ -273,6 +315,7 @@ export const RecipeForm: React.FC = () => {
               />
               {formData.instructions.length > 1 && (
                 <button
+                  title='Remove Step'
                   type="button"
                   onClick={() => removeInstruction(index)}
                   className="btn-icon"
@@ -282,7 +325,7 @@ export const RecipeForm: React.FC = () => {
               )}
             </div>
           ))}
-          <button type="button" onClick={addInstruction} className="btn btn-secondary">
+          <button title='Add Step' type="button" onClick={addInstruction} className="btn btn-secondary">
             <Plus size={20} /> Add Step
           </button>
         </section>
@@ -298,7 +341,7 @@ export const RecipeForm: React.FC = () => {
               onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
               placeholder="Add a tag..."
             />
-            <button type="button" onClick={addTag} className="btn btn-secondary">
+            <button title='Add Tag' type="button" onClick={addTag} className="btn btn-secondary">
               Add Tag
             </button>
           </div>
@@ -306,19 +349,19 @@ export const RecipeForm: React.FC = () => {
             {formData.tags?.map((tag) => (
               <span key={tag} className="tag-chip">
                 {tag}
-                <button type="button" onClick={() => removeTag(tag)}>×</button>
+                <button title='Remove Tag' type="button" onClick={() => removeTag(tag)}>×</button>
               </span>
             ))}
           </div>
         </section>
 
         <div className="form-actions">
-          <button type="button" onClick={() => navigate('/recipes')} className="btn btn-secondary">
+          <button title='Cancel' type="button" onClick={() => window.history.back()} className="btn btn-secondary">
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button title='Save' type="submit" className="btn btn-primary" disabled={isSubmitting}>
             <Save size={20} />
-            {loading ? 'Creating...' : 'Create Recipe'}
+            {isSubmitting ? 'Saving...' : (initialData ? 'Update Recipe' : 'Create Recipe')}
           </button>
         </div>
       </form>
