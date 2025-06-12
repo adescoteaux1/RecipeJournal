@@ -105,3 +105,83 @@
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+
+.recipe-source {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #0066cc;
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.source-link:hover {
+  background-color: #e9ecef;
+  border-color: #0066cc;
+  color: #0052a3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.source-link svg {
+  transition: transform 0.2s ease;
+}
+
+.source-link:hover svg {
+  transform: translateX(2px);
+}
+
+/* Alternative styling option - minimal link style */
+.source-link.minimal {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #0066cc;
+  font-weight: 500;
+}
+
+.source-link.minimal:hover {
+  color: #0052a3;
+  text-decoration: underline;
+  background: none;
+  transform: none;
+  box-shadow: none;
+}
+
+/* If you want to show the full URL on hover */
+.source-link[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 0;
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .recipe-source {
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  
+  .source-link {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+  }
+}

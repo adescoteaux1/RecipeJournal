@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Users, BarChart2, Edit, Trash2, ChefHat } from 'lucide-react';
+import { Clock, Users, BarChart2, Edit, Trash2, ChefHat, ExternalLink } from 'lucide-react';
 import { Recipe } from '../../types/recipe.types';
 import './RecipeDetail.css';
 
@@ -23,12 +23,11 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   return (
     <div className="recipe-detail">
       <div className="recipe-header">
-        <img 
-          src={recipe.header_image_url || 'https://via.placeholder.com/800x400?text=No+Image'} 
+        <img
+          src={recipe.header_image_url || 'https://via.placeholder.com/800x400?text=No+Image'}
           alt={recipe.title}
           className="recipe-hero-image"
         />
-        
         <div className="recipe-header-content">
           <h1>{recipe.title}</h1>
           <p className="recipe-description">{recipe.description}</p>
@@ -58,6 +57,21 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
             </div>
           </div>
 
+          {/* Recipe Source URL */}
+          {recipe.source_url && (
+            <div className="recipe-source">
+              <a 
+                href={recipe.source_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="source-link"
+              >
+                <ExternalLink size={16} />
+                View Original Recipe
+              </a>
+            </div>
+          )}
+
           <div className="recipe-actions">
             <button onClick={onMake} className="btn btn-primary">
               <ChefHat size={20} />
@@ -67,8 +81,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
               <Edit size={20} />
               Edit
             </button>
-            <button 
-              onClick={onDelete} 
+            <button
+              onClick={onDelete}
               className="btn btn-danger"
               disabled={isDeleting}
             >

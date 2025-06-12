@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Minus, Save } from 'lucide-react';
+import { Plus, Minus, Save, Link, Image } from 'lucide-react';
 import { CreateRecipeData, CuisineType, MealType, DifficultyLevel } from '../../types/recipe.types';
 import { ErrorMessage } from '../Common/ErrorMessage';
 import './RecipeForm.css';
@@ -23,6 +23,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
     prep_time: initialData?.prep_time || undefined,
     cook_time: initialData?.cook_time || undefined,
     servings: initialData?.servings || undefined,
+    source_url: initialData?.source_url || '',
+    header_image_url: initialData?.header_image_url || '',
     cuisine_type: initialData?.cuisine_type || 'other',
     meal_type: initialData?.meal_type || 'other',
     difficulty: initialData?.difficulty || 'medium',
@@ -86,8 +88,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
     }));
   };
 
-  // Replace the existing handleSubmit function in your RecipeForm component with this:
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -102,6 +102,8 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
       ...formData,
       title: formData.title.trim(),
       description: (formData.description ?? '').trim(),
+      source_url: formData.source_url?.trim() || undefined,
+      header_image_url: formData.header_image_url?.trim() || undefined,
       // Filter out empty ingredients
       ingredients: formData.ingredients.filter(ing => ing.text.trim()),
       // Filter out empty instructions
@@ -124,8 +126,6 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
     
     await onSubmit(cleanedData);
   };
-
-  // Also update these functions to prevent adding empty items:
 
   const addIngredient = () => {
     // Only add if the last ingredient isn't empty
@@ -180,6 +180,57 @@ export const RecipeForm: React.FC<RecipeFormProps> = ({
               rows={3}
             />
           </div>
+
+          {/* Source URL and Image URL fields */}
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label htmlFor="source_url">
+                <Link size={16} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                Recipe Source URL
+              </label>
+              <input
+                id="source_url"
+                type="url"
+                value={formData.source_url || ''}
+                onChange={(e) => handleBasicInfoChange('source_url', e.target.value)}
+                placeholder="https://example.com/recipe"
+              />
+            </div>
+
+            <div className="form-group" style={{ flex: 1 }}>
+              <label htmlFor="header_image_url">
+                <Image size={16} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                Recipe Image URL
+              </label>
+              <input
+                id="header_image_url"
+                type="url"
+                value={formData.header_image_url || ''}
+                onChange={(e) => handleBasicInfoChange('header_image_url', e.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+          </div>
+
+          {/* Show image preview if URL is provided */}
+          {formData.header_image_url && (
+            <div className="image-preview" style={{ marginTop: '10px', marginBottom: '20px' }}>
+              <img 
+                src={formData.header_image_url} 
+                alt="Recipe preview" 
+                style={{ 
+                  maxWidth: '200px', 
+                  maxHeight: '150px', 
+                  objectFit: 'cover',
+                  borderRadius: '8px',
+                  border: '1px solid #ddd'
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group">
